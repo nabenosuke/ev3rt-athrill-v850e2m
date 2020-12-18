@@ -347,6 +347,15 @@ static void put_log(LogDataType *data)
 
 void main_task(intptr_t unused)
 {
+
+    //cicd
+    KSTEER = *((float *)(0x090F0000 + 540));
+    printf("21:48  %f \n", KSTEER);
+    /*for (int i = 0; i < 100; i++)
+    {
+        printf("%f \n", *((float *)(0x40000000 + i * 4)));
+    }*/
+
     ev3_led_set_color(LED_GREEN);
     // Register button handlers
     ev3_button_set_on_clicked(BACK_BUTTON, button_clicked_handler, BACK_BUTTON);
