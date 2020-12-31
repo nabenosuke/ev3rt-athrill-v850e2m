@@ -9,6 +9,9 @@
 #include "ev3api.h"
 #include "app.h"
 
+//cicd
+#include <string.h>
+
 #define DEBUG
 
 #ifdef DEBUG
@@ -29,8 +32,21 @@ const int gyro_sensor = EV3_PORT_2, left_motor = EV3_PORT_A, right_motor = EV3_P
 /**
  * Constants for the self-balance control algorithm.
  */
-float KSTEER = -0.25;
-const float EMAOFFSET = 0.0005f, KGYROANGLE = 7.5f, KGYROSPEED = 1.15f, KPOS = 0.07f, KSPEED = 0.1f, KDRIVE = -0.02f;
+
+//cicd
+#define PARA_DATA_BASE (0x090F0000 + 512 + 32)
+#define PARA_DATA(index) (PARA_DATA_BASE + ((index - 1) * 4))
+#define PARA1_ADDR PARA_DATA(1)
+#define PARA2_ADDR PARA_DATA(2)
+#define PARA3_ADDR PARA_DATA(3)
+#define PARA4_ADDR PARA_DATA(4)
+#define PARA5_ADDR PARA_DATA(5)
+#define PARA6_ADDR PARA_DATA(6)
+#define PARA7_ADDR PARA_DATA(7)
+
+float *KSTEER = (float *)(PARA1_ADDR), *EMAOFFSET = (float *)(PARA2_ADDR), *KGYROANGLE = (float *)(PARA3_ADDR), *KGYROSPEED = (float *)(PARA4_ADDR), *KPOS = (float *)(PARA5_ADDR), *KSPEED = (float *)(PARA6_ADDR), *KDRIVE = (float *)(PARA7_ADDR);
+//const float *EMAOFFSET = 0.0005f, *KGYROANGLE = 7.5f, *KGYROSPEED = 1.15f, *KPOS = 0.07f, *KSPEED = 0.1f, *KDRIVE = -0.02f;
+
 const float WHEEL_DIAMETER = 5.6;
 const uint32_t WAIT_TIME_MS = 5;
 const uint32_t FALL_TIME_MS = 1000;
@@ -40,7 +56,7 @@ const float INIT_INTERVAL_TIME = 0.014;
 /**
  * Constants for the self-balance control algorithm. (Gyroboy Version)
  */
-//const float EMAOFFSET = 0.0005f, KGYROANGLE = 15.0f, KGYROSPEED = 0.8f, KPOS = 0.12f, KSPEED = 0.08f, KDRIVE = -0.01f;
+//const float EMAOFFSET = 0.0005f, *KGYROANGLE = 15.0f, KGYROSPEED = 0.8f, KPOS = 0.12f, KSPEED = 0.08f, KDRIVE = -0.01f;
 //const float WHEEL_DIAMETER = 5.6;
 //const uint32_t WAIT_TIME_MS = 1;
 //const uint32_t FALL_TIME_MS = 1000;
@@ -116,7 +132,8 @@ static void update_interval_time()
 static void update_gyro_data()
 {
     int gyro = ev3_gyro_sensor_get_rate(gyro_sensor);
-    gyro_offset = EMAOFFSET * gyro + (1 - EMAOFFSET) * gyro_offset;
+    syslog(LOG_INFO, "### update_gyro_data: %f", *EMAOFFSET);
+    gyro_offset = *EMAOFFSET * gyro + (1 - *EMAOFFSET) * gyro_offset;
     gyro_speed = gyro - gyro_offset;
     gyro_angle += gyro_speed * interval_time;
 }
@@ -164,12 +181,12 @@ static bool_t keep_balance()
     motor_pos -= motor_control_drive * interval_time;
 
     // This is the main balancing equation
-    int power = (int)((KGYROSPEED * gyro_speed + // Deg/Sec from Gyro sensor
-                       KGYROANGLE * gyro_angle) /
-                          ratio_wheel +              // Deg from integral of gyro
-                      KPOS * motor_pos +             // From MotorRotaionCount of both motors
-                      KDRIVE * motor_control_drive + // To improve start/stop performance
-                      KSPEED * motor_speed);         // Motor speed in Deg/Sec
+    int power = (int)((*KGYROSPEED * gyro_speed + // Deg/Sec from Gyro sensor
+                       *KGYROANGLE * gyro_angle) /
+                          ratio_wheel +               // Deg from integral of gyro
+                      *KPOS * motor_pos +             // From MotorRotaionCount of both motors
+                      *KDRIVE * motor_control_drive + // To improve start/stop performance
+                      *KSPEED * motor_speed);         // Motor speed in Deg/Sec
 
     // Check fallen
     SYSTIM time;
@@ -185,7 +202,7 @@ static bool_t keep_balance()
     int left_power, right_power;
 
     // TODO: support steering and motor_control_drive
-    int power_steer = (int)(KSTEER * (motor_diff_target - motor_diff));
+    int power_steer = (int)(*KSTEER * (motor_diff_target - motor_diff));
     left_power = power + power_steer;
     right_power = power - power_steer;
     if (left_power > 100)
@@ -205,6 +222,7 @@ static bool_t keep_balance()
 
 void balance_task(intptr_t unused)
 {
+    printf("test");
     ER ercd;
     int i;
 
@@ -347,14 +365,29 @@ static void put_log(LogDataType *data)
 
 void main_task(intptr_t unused)
 {
-
-    //cicd
-    KSTEER = *((float *)(0x090F0000 + 540));
-    printf("21:48  %f \n", KSTEER);
-    /*for (int i = 0; i < 100; i++)
+    /*
+    EMAOFFSET = *((volatile float *)(0x090F0000 + 544));
+    KGYROSPEED = *((float *)(0x090F0000 + 552));
+    KPOS = *((float *)(0x090F0000 + 556));
+    KSPEED = *((float *)(0x090F0000 + 560));
+    KDRIVE = *((float *)(0x090F0000 + 564));
+*/
+    printf("KSTEER:%f \n", *KSTEER);
+    printf("EMAOFFSET:%f \n", *EMAOFFSET);
+    printf("KGYROANGLE:%f \n", *KGYROANGLE);
+    printf("KGYROSPEED:%f \n", *KGYROSPEED);
+    printf("KPOS:%f \n", *KPOS);
+    printf("KSPEED:%f \n", *KSPEED);
+    printf("KDRIVE:%f \n", *KDRIVE);
+    //printf("%f", *((float *)(0x090F0000 + 564)));
+    printf("%f ", *((float *)(0x090F0000 + 529)));
+    printf("%f ", *((float *)(0x090F0000 + 530)));
+    printf("%f ", *((float *)(0x090F0000 + 531)));
+    printf("%f ", *((float *)(0x090F0000 + 535)));
+    for (int i = 128; i < 256; i++)
     {
-        printf("%f \n", *((float *)(0x40000000 + i * 4)));
-    }*/
+        printf("%f ", *((float *)(0x090F0000 + i * 4)));
+    }
 
     ev3_led_set_color(LED_GREEN);
     // Register button handlers
