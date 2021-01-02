@@ -34,7 +34,7 @@ const int gyro_sensor = EV3_PORT_2, left_motor = EV3_PORT_A, right_motor = EV3_P
  */
 
 //cicd
-#define PARA_DATA_BASE (0x090F0000 + 512 + 32)
+#define PARA_DATA_BASE (0x090F0000 + 540)
 #define PARA_DATA(index) (PARA_DATA_BASE + ((index - 1) * 4))
 #define PARA1_ADDR PARA_DATA(1)
 #define PARA2_ADDR PARA_DATA(2)
@@ -379,11 +379,6 @@ void main_task(intptr_t unused)
     printf("KPOS:%f \n", *KPOS);
     printf("KSPEED:%f \n", *KSPEED);
     printf("KDRIVE:%f \n", *KDRIVE);
-    //printf("%f", *((float *)(0x090F0000 + 564)));
-    printf("%f ", *((float *)(0x090F0000 + 529)));
-    printf("%f ", *((float *)(0x090F0000 + 530)));
-    printf("%f ", *((float *)(0x090F0000 + 531)));
-    printf("%f ", *((float *)(0x090F0000 + 535)));
     for (int i = 128; i < 256; i++)
     {
         printf("%f ", *((float *)(0x090F0000 + i * 4)));
