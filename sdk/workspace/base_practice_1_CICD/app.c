@@ -26,6 +26,9 @@ static const int ultrasonic_sensor = EV3_PORT_2;
 static const int touch_sensor0 = EV3_PORT_3;
 static const int touch_sensor1 = EV3_PORT_4;
 
+const int *forward_power = (int *)(0x090F0000 + 540);
+const int *turn_speed = (int *)(0x090F0000 + 544);
+
 #define ERR_CHECK(err)                                                                \
     do                                                                                \
     {                                                                                 \
@@ -38,8 +41,11 @@ static const int touch_sensor1 = EV3_PORT_4;
 /*
  * 1.1 走る(前進操作)
  */
-static void do_foward(int power)
+static void
+do_foward(int power)
 {
+    //printf("forward %d \n", power);
+    //syslog(LOG_NOTICE, power);
     ER err = ev3_motor_steer(left_motor, right_motor, power, 0);
     ERR_CHECK(err);
     return;
@@ -138,11 +144,11 @@ static void do_arm_move(bool_t up)
 /*
  * 1.2 曲がる(ステアリング操作)
  */
-static void do_turn(int turn_speed)
+static void do_turn(int *turn_speed)
 {
-    if (turn_speed > 0)
+    if (*turn_speed > 0)
     {
-        ER err = ev3_motor_set_power(left_motor, turn_speed);
+        ER err = ev3_motor_set_power(left_motor, *turn_speed);
         ERR_CHECK(err);
         err = ev3_motor_set_power(right_motor, 0);
         ERR_CHECK(err);
@@ -151,7 +157,7 @@ static void do_turn(int turn_speed)
     {
         ER err = ev3_motor_set_power(left_motor, 0);
         ERR_CHECK(err);
-        err = ev3_motor_set_power(right_motor, -turn_speed);
+        err = ev3_motor_set_power(right_motor, -*turn_speed);
         ERR_CHECK(err);
     }
     return;
@@ -159,7 +165,7 @@ static void do_turn(int turn_speed)
 
 static void do_practice_1(void)
 {
-    do_foward(5);
+    do_foward(*forward_power);
     do_arm_move(false);
     check_color_sensor();
     //check_ultrasonic_sensor();
@@ -186,17 +192,17 @@ static void do_practice_2_first(void)
     switch (color)
     {
     case COLOR_BLACK:
-        do_foward(5);
+        do_foward(*forward_power);
         break;
     case COLOR_WHITE:
-        do_turn(5);
+        do_turn(*turn_speed);
         break;
     case COLOR_RED:
         do_stop();
         Practice2_Phase = Practice2_Phase_Second;
         break;
     default:
-        do_turn(-5);
+        do_turn(-*turn_speed);
         break;
     }
     return;
@@ -207,7 +213,7 @@ static void do_practice_2_second(void)
     check_color_sensor();
     if (ultrasonic_value > 5)
     {
-        do_foward(5);
+        do_foward(*forward_power);
         return;
     }
 
@@ -227,7 +233,7 @@ static void do_practice_2_third(void)
     check_ultrasonic_sensor();
     if (ultrasonic_value < 12)
     {
-        do_turn(5);
+        do_turn(*turn_speed);
         return;
     }
     Practice2_Phase = Practice2_Phase_Fourth;
@@ -239,17 +245,17 @@ static void do_practice_2_Fourth(void)
     switch (color)
     {
     case COLOR_BLACK:
-        do_foward(5);
+        do_foward(*forward_power);
         break;
     case COLOR_WHITE:
-        do_turn(-5);
+        do_turn(-*turn_speed);
         break;
     case COLOR_BLUE:
         do_stop();
         Practice2_Phase = Practice2_Phase_Fifth;
         break;
     default:
-        do_turn(5);
+        do_turn(*turn_speed);
         break;
     }
     return;
@@ -265,7 +271,7 @@ static void do_practice_2_Fifh(void)
     }
     else
     {
-        do_foward(5);
+        do_foward(*forward_power);
     }
     return;
 }
@@ -340,6 +346,11 @@ void main_task(intptr_t unused)
     ev3_motor_config(arm_motor, LARGE_MOTOR);
 
     syslog(LOG_NOTICE, "#### motor control start");
+    syslog(LOG_NOTICE, *forward_power);
+    syslog(LOG_NOTICE, *turn_speed);
+    printf("forward power:%d \n", *forward_power);
+    printf("turn_speed:%d \n", *turn_speed);
+    printf("%d \n", *((int *)(0x090F0000 + 540)));
     int count = 0;
     ev3_motor_stop(left_motor, true);
     ev3_motor_stop(right_motor, true);

@@ -44,8 +44,11 @@ const int gyro_sensor = EV3_PORT_2, left_motor = EV3_PORT_A, right_motor = EV3_P
 #define PARA6_ADDR PARA_DATA(6)
 #define PARA7_ADDR PARA_DATA(7)
 
-float *KSTEER = (float *)(PARA1_ADDR), *EMAOFFSET = (float *)(PARA2_ADDR), *KGYROANGLE = (float *)(PARA3_ADDR), *KGYROSPEED = (float *)(PARA4_ADDR), *KPOS = (float *)(PARA5_ADDR), *KSPEED = (float *)(PARA6_ADDR), *KDRIVE = (float *)(PARA7_ADDR);
-//const float *EMAOFFSET = 0.0005f, *KGYROANGLE = 7.5f, *KGYROSPEED = 1.15f, *KPOS = 0.07f, *KSPEED = 0.1f, *KDRIVE = -0.02f;
+const float *INTEGRAL_RATE = (float *)(PARA1_ADDR), *ERROR_RATE = (float *)(PARA2_ADDR), *MOTOR_POWER_FLOAT = (float *)(PARA3_ADDR);
+
+//const float *KSTEER = (float *)(PARA1_ADDR), *EMAOFFSET = (float *)(PARA2_ADDR), *KGYROANGLE = (float *)(PARA3_ADDR), *KGYROSPEED = (float *)(PARA4_ADDR), *KPOS = (float *)(PARA5_ADDR), *KSPEED = (float *)(PARA6_ADDR), *KDRIVE = (float *)(PARA7_ADDR);
+const float KSTEER = -0.25, EMAOFFSET = 0.0005f,
+            KGYROANGLE = 7.5f, KGYROSPEED = 1.15f, KPOS = 0.07f, KSPEED = 0.1f, KDRIVE = -0.02f;
 
 const float WHEEL_DIAMETER = 5.6;
 const uint32_t WAIT_TIME_MS = 5;
@@ -56,7 +59,7 @@ const float INIT_INTERVAL_TIME = 0.014;
 /**
  * Constants for the self-balance control algorithm. (Gyroboy Version)
  */
-//const float EMAOFFSET = 0.0005f, *KGYROANGLE = 15.0f, KGYROSPEED = 0.8f, KPOS = 0.12f, KSPEED = 0.08f, KDRIVE = -0.01f;
+//const float EMAOFFSET = 0.0005f, KGYROANGLE = 15.0f, KGYROSPEED = 0.8f, KPOS = 0.12f, KSPEED = 0.08f, KDRIVE = -0.01f;
 //const float WHEEL_DIAMETER = 5.6;
 //const uint32_t WAIT_TIME_MS = 1;
 //const uint32_t FALL_TIME_MS = 1000;
@@ -132,8 +135,8 @@ static void update_interval_time()
 static void update_gyro_data()
 {
     int gyro = ev3_gyro_sensor_get_rate(gyro_sensor);
-    syslog(LOG_INFO, "### update_gyro_data: %f", *EMAOFFSET);
-    gyro_offset = *EMAOFFSET * gyro + (1 - *EMAOFFSET) * gyro_offset;
+    syslog(LOG_INFO, "### update_gyro_data: %f", EMAOFFSET);
+    gyro_offset = EMAOFFSET * gyro + (1 - EMAOFFSET) * gyro_offset;
     gyro_speed = gyro - gyro_offset;
     gyro_angle += gyro_speed * interval_time;
 }
@@ -181,12 +184,12 @@ static bool_t keep_balance()
     motor_pos -= motor_control_drive * interval_time;
 
     // This is the main balancing equation
-    int power = (int)((*KGYROSPEED * gyro_speed + // Deg/Sec from Gyro sensor
-                       *KGYROANGLE * gyro_angle) /
-                          ratio_wheel +               // Deg from integral of gyro
-                      *KPOS * motor_pos +             // From MotorRotaionCount of both motors
-                      *KDRIVE * motor_control_drive + // To improve start/stop performance
-                      *KSPEED * motor_speed);         // Motor speed in Deg/Sec
+    int power = (int)((KGYROSPEED * gyro_speed + // Deg/Sec from Gyro sensor
+                       KGYROANGLE * gyro_angle) /
+                          ratio_wheel +              // Deg from integral of gyro
+                      KPOS * motor_pos +             // From MotorRotaionCount of both motors
+                      KDRIVE * motor_control_drive + // To improve start/stop performance
+                      KSPEED * motor_speed);         // Motor speed in Deg/Sec
 
     // Check fallen
     SYSTIM time;
@@ -202,7 +205,7 @@ static bool_t keep_balance()
     int left_power, right_power;
 
     // TODO: support steering and motor_control_drive
-    int power_steer = (int)(*KSTEER * (motor_diff_target - motor_diff));
+    int power_steer = (int)(KSTEER * (motor_diff_target - motor_diff));
     left_power = power + power_steer;
     right_power = power - power_steer;
     if (left_power > 100)
@@ -366,12 +369,6 @@ static void put_log(LogDataType *data)
 void main_task(intptr_t unused)
 {
     /*
-    EMAOFFSET = *((volatile float *)(0x090F0000 + 544));
-    KGYROSPEED = *((float *)(0x090F0000 + 552));
-    KPOS = *((float *)(0x090F0000 + 556));
-    KSPEED = *((float *)(0x090F0000 + 560));
-    KDRIVE = *((float *)(0x090F0000 + 564));
-*/
     printf("KSTEER:%f \n", *KSTEER);
     printf("EMAOFFSET:%f \n", *EMAOFFSET);
     printf("KGYROANGLE:%f \n", *KGYROANGLE);
@@ -379,6 +376,11 @@ void main_task(intptr_t unused)
     printf("KPOS:%f \n", *KPOS);
     printf("KSPEED:%f \n", *KSPEED);
     printf("KDRIVE:%f \n", *KDRIVE);
+    */
+    int MOTOR_POWER = (int)(*MOTOR_POWER_FLOAT);
+    printf("INTEGRAL_RATE:%f \n", *INTEGRAL_RATE);
+    printf("ERROR_RATE:%f \n", *ERROR_RATE);
+    printf("MOTOR_POWER:%d \n", MOTOR_POWER);
     for (int i = 128; i < 256; i++)
     {
         printf("%f ", *((float *)(0x090F0000 + i * 4)));
@@ -427,13 +429,18 @@ void main_task(intptr_t unused)
         {
             float error = midpoint - ev3_color_sensor_get_reflect(EV3_PORT_1);
 #ifdef LIGHT_BRIGHT
-            integral = error + integral * 0.01;
-            float steer = 0.9 * error + 0.1 * integral + 1 * (error - lasterror);
+            //printf("integral:%f", integral);
+            integral = error + integral * (*INTEGRAL_RATE);
+            //integral = error + integral * 0.01;
+            float steer = (*ERROR_RATE) * error + (1 - (*ERROR_RATE)) * integral + 1 * (error - lasterror);
+            //float steer = 0.9 * error + 0.1 * integral + 1 * (error - lasterror);
 #else
             integral = error + integral * 0.05;
             float steer = 0.7 * error + 0.1 * integral + 1 * (error - lasterror);
 #endif
-            ev3_motor_steer(left_motor, right_motor, 10, steer);
+            printf("steer:%f", steer);
+            ev3_motor_steer(left_motor, right_motor, MOTOR_POWER, steer);
+            //ev3_motor_steer(left_motor, right_motor, 10, steer);
             lasterror = error;
         }
         tslp_tsk(100000); /* 100msec */

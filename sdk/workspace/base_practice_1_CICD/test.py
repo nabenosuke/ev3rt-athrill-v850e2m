@@ -5,10 +5,12 @@ import struct
 print("start")
 
 parameters = []
-parameters.append([0.01, 0.3, 0.5, 0.01, 0.3, 0.5, 0.01, 0.3, 0.5])
-parameters.append([0.99, 0.99, 0.99, 0.7, 0.7, 0.7, 0.5, 0.5, 0.5])
-parameters.append([15, 15, 15, 15, 15, 15, 15, 15, 15])
+parameters.append([5, 10, 50, 10, 10])
+parameters.append([5, 10, 50, 1, 50])
 """
+parameters.append([1, -0.5, -0.25, 0, 0.25])
+parameters.append([1, 0.005, 0.1, 0.5, 1])
+parameters.append([1, 2.5, 5, 7.5, 10])
 parameters.append([1, 0.5, 1, 1.15, 1.5])
 parameters.append([1, 0.02, 0.07, 0.09, 0.1])
 parameters.append([1, 0.05, 0.1, 0.2, 0.5])
@@ -42,8 +44,10 @@ def Setpara(parameter, para_index):
             for i in range(parameters_num):
                 string += str(parameters[i][para_index]) + ", "
                 para_addr = Parameter_address(i)
+                print(type(parameters[i][para_index]))
                 m[para_addr:para_addr +
-                    4] = struct.pack('<f', parameters[i][para_index])
+                    4] = struct.pack('<i', parameters[i][para_index])
+                print(struct.pack('<i', parameters[i][para_index]))
             print(string)
             result_file.writelines([string, "\n"])
             """
@@ -76,7 +80,6 @@ for i in range(test_num):
                     goaltime_double = struct.unpack('<Q', goaltime_byte)
                     goaltime = (int(goaltime_double[0])) / 1000000
                     print("Goal time:", goaltime)
-                    result_file.writelines([str(goaltime), "\n"])
                     break
                 # TIME_OVER
                 elif (event == 2):
@@ -89,4 +92,3 @@ for i in range(test_num):
     print("Do reset")
     Reset()
 result_file.close()
-time.sleep(1000)
