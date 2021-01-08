@@ -44,7 +44,7 @@ const int gyro_sensor = EV3_PORT_2, left_motor = EV3_PORT_A, right_motor = EV3_P
 #define PARA6_ADDR PARA_DATA(6)
 #define PARA7_ADDR PARA_DATA(7)
 
-const float *INTEGRAL_RATE = (float *)(PARA1_ADDR), *ERROR_RATE = (float *)(PARA2_ADDR), *MOTOR_POWER_FLOAT = (float *)(PARA3_ADDR);
+const float *Kp = (float *)(PARA1_ADDR), *Ki = (float *)(PARA2_ADDR), *Kd = (float *)(PARA3_ADDR), *MOTOR_POWER_FLOAT = (float *)(PARA4_ADDR);
 
 //const float *KSTEER = (float *)(PARA1_ADDR), *EMAOFFSET = (float *)(PARA2_ADDR), *KGYROANGLE = (float *)(PARA3_ADDR), *KGYROSPEED = (float *)(PARA4_ADDR), *KPOS = (float *)(PARA5_ADDR), *KSPEED = (float *)(PARA6_ADDR), *KDRIVE = (float *)(PARA7_ADDR);
 const float KSTEER = -0.25, EMAOFFSET = 0.0005f,
@@ -378,8 +378,9 @@ void main_task(intptr_t unused)
     printf("KDRIVE:%f \n", *KDRIVE);
     */
     int MOTOR_POWER = (int)(*MOTOR_POWER_FLOAT);
-    printf("INTEGRAL_RATE:%f \n", *INTEGRAL_RATE);
-    printf("ERROR_RATE:%f \n", *ERROR_RATE);
+    printf("Kp:%f \n", *Kp);
+    printf("Ki:%f \n", *Ki);
+    printf("Kd:%f \n", *Kd);
     printf("MOTOR_POWER:%d \n", MOTOR_POWER);
     for (int i = 128; i < 256; i++)
     {
@@ -429,16 +430,13 @@ void main_task(intptr_t unused)
         {
             float error = midpoint - ev3_color_sensor_get_reflect(EV3_PORT_1);
 #ifdef LIGHT_BRIGHT
-            //printf("integral:%f", integral);
-            integral = error + integral * (*INTEGRAL_RATE);
-            //integral = error + integral * 0.01;
-            float steer = (*ERROR_RATE) * error + (1 - (*ERROR_RATE)) * integral + 1 * (error - lasterror);
+            integral = error + integral * 0.01;
+            float steer = (*Kp) * error + (*Ki) * integral + (*Kd) * (error - lasterror);
             //float steer = 0.9 * error + 0.1 * integral + 1 * (error - lasterror);
 #else
             integral = error + integral * 0.05;
             float steer = 0.7 * error + 0.1 * integral + 1 * (error - lasterror);
 #endif
-            printf("steer:%f", steer);
             ev3_motor_steer(left_motor, right_motor, MOTOR_POWER, steer);
             //ev3_motor_steer(left_motor, right_motor, 10, steer);
             lasterror = error;

@@ -5,9 +5,10 @@ import struct
 print("start")
 
 parameters = []
-parameters.append([0.01, 0.3, 0.5, 0.01, 0.3, 0.5, 0.01, 0.3, 0.5])
-parameters.append([0.99, 0.99, 0.99, 0.7, 0.7, 0.7, 0.5, 0.5, 0.5])
-parameters.append([15, 15, 15, 15, 15, 15, 15, 15, 15])
+parameters.append([0.9, 0.9, 0.9, 0.9, 0.6, 0.6, 0.6, 0.6])
+parameters.append([0.1, 0.1, 0.3, 0.3, 0.1, 0.1, 0.3, 0.3])
+parameters.append([1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5])
+parameters.append([15, 15, 15, 15, 15, 15, 15, 15])
 """
 parameters.append([1, 0.5, 1, 1.15, 1.5])
 parameters.append([1, 0.02, 0.07, 0.09, 0.1])
@@ -89,4 +90,5 @@ for i in range(test_num):
     print("Do reset")
     Reset()
 result_file.close()
+print("end")
 time.sleep(1000)
