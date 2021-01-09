@@ -4,9 +4,6 @@ import time
 import struct
 print("start")
 
-loop_num = 3
-penalty_time = 120
-
 parameters = []
 parameters.append([0.9, 0.9, 0.9, 0.9, 0.6, 0.6, 0.6, 0.6])
 parameters.append([0.1, 0.1, 0.3, 0.3, 0.1, 0.1, 0.3, 0.3])
@@ -69,40 +66,29 @@ for i in range(test_num):
     Setpara(parameter7[i], 7)
     """
     Setpara(parameters, i)
-    goal_count = 0
-    goaltime_sum = 0
-    for loop_count in range(loop_num):
-        while True:
-            # wait event
-            with open("unity_mmap.bin", mode="r+b") as f:
-                with contextlib.closing(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)) as m:
-                    event = m[560]
-                    # GOAL
-                    if (event == 1):
-                        print("GOAL")
-                        goaltime_byte = m[532:540]
-                        goaltime_double = struct.unpack('<Q', goaltime_byte)
-                        goaltime = (int(goaltime_double[0])) / 1000000
-                        goal_count += 1
-                        goaltime_sum += goaltime
-                        #print("Goal time:", goaltime)
-                        result_file.writelines([str(goaltime), "\n"])
-                        break
-                    # TIME_OVER
-                    elif (event == 2):
-                        print("Time is over")
-                        break
-                    # HIT_WALL
-                    elif (event == 3):
-                        print("HIT WALL")
-                        break
-        Reset()
-    if (goal_count > (loop_num / 3)):
-        goaltime_ave = goaltime_sum / goal_count
-        print("Goaltime average:", goaltime_ave, "\n")
-    else:
-        print("FAILED \n")
-
+    while True:
+        with open("unity_mmap.bin", mode="r+b") as f:
+            with contextlib.closing(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)) as m:
+                event = m[560]
+                # GOAL
+                if (event == 1):
+                    print("GOAL")
+                    goaltime_byte = m[532:540]
+                    goaltime_double = struct.unpack('<Q', goaltime_byte)
+                    goaltime = (int(goaltime_double[0])) / 1000000
+                    print("Goal time:", goaltime)
+                    result_file.writelines([str(goaltime), "\n"])
+                    break
+                # TIME_OVER
+                elif (event == 2):
+                    print("Time is over")
+                    break
+                # HIT_WALL
+                elif (event == 3):
+                    print("HIT WALL")
+                    break
+    print("Do reset")
+    Reset()
 result_file.close()
 print("end")
 time.sleep(1000)
