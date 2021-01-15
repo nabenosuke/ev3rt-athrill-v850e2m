@@ -43,9 +43,9 @@ const int gyro_sensor = EV3_PORT_2, left_motor = EV3_PORT_A, right_motor = EV3_P
 #define PARA5_ADDR PARA_DATA(5)
 #define PARA6_ADDR PARA_DATA(6)
 #define PARA7_ADDR PARA_DATA(7)
+#define START_FLAG_ADDR (0x090F1000 + 516)
 
 const float *Kp = (float *)(PARA1_ADDR), *Ki = (float *)(PARA2_ADDR), *Kd = (float *)(PARA3_ADDR), *MOTOR_POWER_FLOAT = (float *)(PARA4_ADDR);
-
 //const float *KSTEER = (float *)(PARA1_ADDR), *EMAOFFSET = (float *)(PARA2_ADDR), *KGYROANGLE = (float *)(PARA3_ADDR), *KGYROSPEED = (float *)(PARA4_ADDR), *KPOS = (float *)(PARA5_ADDR), *KSPEED = (float *)(PARA6_ADDR), *KDRIVE = (float *)(PARA7_ADDR);
 const float KSTEER = -0.25, EMAOFFSET = 0.0005f,
             KGYROANGLE = 7.5f, KGYROSPEED = 1.15f, KPOS = 0.07f, KSPEED = 0.1f, KDRIVE = -0.02f;
@@ -368,6 +368,16 @@ static void put_log(LogDataType *data)
 
 void main_task(intptr_t unused)
 {
+    /*
+    while((*(volatile int *)(START_FLAG_ADDR))==0){
+        tslp_tsk(10000000);
+            for (int i = 128; i < 160; i++)
+    {
+        printf("%f ", *((volatile float *)(0x090F1000 + i * 4)));
+    }
+    printf("\n");
+    }
+    */
     /*
     printf("KSTEER:%f \n", *KSTEER);
     printf("EMAOFFSET:%f \n", *EMAOFFSET);

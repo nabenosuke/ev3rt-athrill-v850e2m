@@ -2,21 +2,25 @@ import mmap
 import contextlib
 import time
 import struct
+import GPy
+import GPyOpt
+import numpy as np
 print("start")
 
+loop_num = 3
+penalty_time = 120
+moter_power=20
+
+"""
 parameters = []
 parameters.append([0.9, 0.9, 0.9, 0.9, 0.6, 0.6, 0.6, 0.6])
 parameters.append([0.1, 0.1, 0.3, 0.3, 0.1, 0.1, 0.3, 0.3])
 parameters.append([1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5])
 parameters.append([15, 15, 15, 15, 15, 15, 15, 15])
-"""
-parameters.append([1, 0.5, 1, 1.15, 1.5])
-parameters.append([1, 0.02, 0.07, 0.09, 0.1])
-parameters.append([1, 0.05, 0.1, 0.2, 0.5])
-parameters.append([1, -0.01, -0.02, -0.1, -0.3])
-"""
+
 parameters_num = len(parameters)
 test_num = len(parameters[0])
+"""
 
 
 base_offset = 540 + 32
@@ -32,63 +36,96 @@ def Reset():
     with open("athrill_mmap.bin", mode="r+b") as f:
         with contextlib.closing(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_WRITE)) as m:
             m[544] = 1
+            Unity_stop()
             time.sleep(1)
             m[544] = 0
 
 
-def Setpara(parameter, para_index):
+def Unity_start():
+    with open("athrill_mmap.bin", mode="r+b") as f:
+        with contextlib.closing(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_WRITE)) as m:
+            m[548] = 1
+            #print("unity_start")
+
+
+def Unity_stop():
+    with open("athrill_mmap.bin", mode="r+b") as f:
+        with contextlib.closing(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_WRITE)) as m:
+            m[548] = 0
+            #print("unity_stop")
+
+
+def Setpara(parameter):
     with open("unity_mmap.bin", mode="r+b") as f:
         with contextlib.closing(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_WRITE)) as m:
             string = "Set "
-            for i in range(parameters_num):
-                string += str(parameters[i][para_index]) + ", "
+            for i in range(len(parameter)):
+                string += str(parameter[i]) + ", "
                 para_addr = Parameter_address(i)
                 m[para_addr:para_addr +
-                    4] = struct.pack('<f', parameters[i][para_index])
+                    4] = struct.pack('<f', parameter[i])
             print(string)
             result_file.writelines([string, "\n"])
-            """
-            print("set", para)
-            m[Parameter(j):Parameter(j) + 4] = struct.pack('<f', para)
-            """
 
 
-# リセットとパラメータ書き込みの順番
-# while True:
-for i in range(test_num):
-    """
-    Setpara(parameter1[i], 1)
-    Setpara(parameter2[i], 2)
-    Setpara(parameter3[i], 3)
-    Setpara(parameter4[i], 4)
-    Setpara(parameter5[i], 5)
-    Setpara(parameter6[i], 6)
-    Setpara(parameter7[i], 7)
-    """
-    Setpara(parameters, i)
-    while True:
-        with open("unity_mmap.bin", mode="r+b") as f:
-            with contextlib.closing(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)) as m:
-                event = m[560]
-                # GOAL
-                if (event == 1):
-                    print("GOAL")
-                    goaltime_byte = m[532:540]
-                    goaltime_double = struct.unpack('<Q', goaltime_byte)
-                    goaltime = (int(goaltime_double[0])) / 1000000
-                    print("Goal time:", goaltime)
-                    result_file.writelines([str(goaltime), "\n"])
-                    break
-                # TIME_OVER
-                elif (event == 2):
-                    print("Time is over")
-                    break
-                # HIT_WALL
-                elif (event == 3):
-                    print("HIT WALL")
-                    break
-    print("Do reset")
-    Reset()
+def Do_test(x):
+    Setpara([x[:,0], x[:,1], x[:,2], moter_power])
+    #Setpara([x[:,0], x[:,1], 1, moter_power])
+    #Unity_start()
+    goal_count = 0
+    goaltime_sum = 0
+    for loop_count in range(loop_num):
+        Unity_start()
+        time.sleep(1)
+        while True:
+            # wait event
+            with open("unity_mmap.bin", mode="r+b") as f:
+                with contextlib.closing(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)) as m:
+                    event = m[560]
+                    # GOAL
+                    if (event == 1):
+                        print("GOAL")
+                        goaltime_byte = m[532:540]
+                        goaltime_double = struct.unpack('<Q', goaltime_byte)
+                        goaltime = (int(goaltime_double[0])) / 1000000
+                        goal_count += 1
+                        goaltime_sum += goaltime
+                        #print("Goal time:", goaltime)
+                        result_file.writelines([str(goaltime), "\n"])
+                        break
+                    # TIME_OVER
+                    elif (event == 2):
+                        print("Time is over")
+                        break
+                    # HIT_WALL
+                    elif (event == 3):
+                        print("HIT WALL")
+                        break
+        Reset()
+    #Unity_stop()
+    if (goal_count > (loop_num / 3)):
+        goaltime_ave = goaltime_sum / goal_count
+        print("Goaltime average:", goaltime_ave, "\n")
+        result = goaltime_ave
+    else:
+        print("FAILED \n")
+        result = penalty_time
+    time.sleep(10)
+    return result
+
+
+Unity_stop()
+bounds = [{'name': 'Kp', 'type': 'continuous', 'domain': (0,1)},{'name': 'Ki', 'type': 'continuous', 'domain': (0,1)}, {'name': 'Kd', 'type': 'continuous', 'domain': (0,1)}]
+#bounds = [{'name': 'Kp', 'type': 'continuous', 'domain': (0,1)},{'name': 'Ki', 'type': 'continuous', 'domain': (0,1)}]
+
+myBopt = GPyOpt.methods.BayesianOptimization(f=Do_test, domain=bounds)
+myBopt.run_optimization(max_iter=20)
+myBopt.plot_acquisition()
+
+opt_para=str(myBopt.x_opt)
+print(opt_para)
+opt_time=str(myBopt.fx_opt)
+print(opt_time)
 result_file.close()
 print("end")
 time.sleep(1000)
