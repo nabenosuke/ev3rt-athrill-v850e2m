@@ -8,8 +8,10 @@ import numpy as np
 print("start")
 
 loop_num = 3
-penalty_time = 120
-moter_power=20
+penalty_time = 60
+moter_power = 15
+search_num = 15
+flag_maximize = True
 
 """
 parameters = []
@@ -73,8 +75,9 @@ def Do_test(x):
     #Setpara([x[:,0], x[:,1], 1, moter_power])
     #Unity_start()
     goal_count = 0
+    fail_count = 0
     goaltime_sum = 0
-    for loop_count in range(loop_num):
+    while(goal_count < loop_num and fail_count < loop_num):
         Unity_start()
         time.sleep(1)
         while True:
@@ -84,32 +87,34 @@ def Do_test(x):
                     event = m[560]
                     # GOAL
                     if (event == 1):
+                        goal_count += 1
                         print("GOAL")
                         goaltime_byte = m[532:540]
                         goaltime_double = struct.unpack('<Q', goaltime_byte)
                         goaltime = (int(goaltime_double[0])) / 1000000
-                        goal_count += 1
                         goaltime_sum += goaltime
                         #print("Goal time:", goaltime)
                         result_file.writelines([str(goaltime), "\n"])
                         break
                     # TIME_OVER
                     elif (event == 2):
+                        fail_count += 1
                         print("Time is over")
                         break
                     # HIT_WALL
                     elif (event == 3):
+                        fail_count += 1
                         print("HIT WALL")
                         break
         Reset()
     #Unity_stop()
-    if (goal_count > (loop_num / 3)):
-        goaltime_ave = goaltime_sum / goal_count
+    if (goal_count == loop_num):
+        goaltime_ave = goaltime_sum / loop_num
         print("Goaltime average:", goaltime_ave, "\n")
-        result = goaltime_ave
+        result = penalty_time - goaltime_ave
     else:
         print("FAILED \n")
-        result = penalty_time
+        result = 0
     time.sleep(10)
     return result
 
@@ -118,13 +123,13 @@ Unity_stop()
 bounds = [{'name': 'Kp', 'type': 'continuous', 'domain': (0,1)},{'name': 'Ki', 'type': 'continuous', 'domain': (0,1)}, {'name': 'Kd', 'type': 'continuous', 'domain': (0,1)}]
 #bounds = [{'name': 'Kp', 'type': 'continuous', 'domain': (0,1)},{'name': 'Ki', 'type': 'continuous', 'domain': (0,1)}]
 
-myBopt = GPyOpt.methods.BayesianOptimization(f=Do_test, domain=bounds)
-myBopt.run_optimization(max_iter=20)
+myBopt = GPyOpt.methods.BayesianOptimization(f=Do_test, domain=bounds, maximize = flag_maximize)
+myBopt.run_optimization(max_iter=15)
 myBopt.plot_acquisition()
 
 opt_para=str(myBopt.x_opt)
 print(opt_para)
-opt_time=str(myBopt.fx_opt)
+opt_time=str(penalty_time - myBopt.fx_opt)
 print(opt_time)
 result_file.close()
 print("end")
