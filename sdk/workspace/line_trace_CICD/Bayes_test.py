@@ -123,14 +123,17 @@ Unity_stop()
 bounds = [{'name': 'Kp', 'type': 'continuous', 'domain': (0,1)},{'name': 'Ki', 'type': 'continuous', 'domain': (0,1)}, {'name': 'Kd', 'type': 'continuous', 'domain': (0,1)}]
 #bounds = [{'name': 'Kp', 'type': 'continuous', 'domain': (0,1)},{'name': 'Ki', 'type': 'continuous', 'domain': (0,1)}]
 
-myBopt = GPyOpt.methods.BayesianOptimization(f=Do_test, domain=bounds, maximize = flag_maximize)
-myBopt.run_optimization(max_iter=15)
+myBopt = GPyOpt.methods.BayesianOptimization(f=Do_test, domain=bounds, maximize = flag_maximize, acquisition_type='EI')
+myBopt.run_optimization(max_iter=5)
 myBopt.plot_acquisition()
 
-opt_para=str(myBopt.x_opt)
-print(opt_para)
-opt_time=str(penalty_time - myBopt.fx_opt)
-print(opt_time)
+opt_para = myBopt.x_opt
+opt_para_str=str(myBopt.x_opt)
+print(opt_para_str)
+opt_time = penalty_time - myBopt.fx_opt
+opt_time_str=str(opt_time)
+print(str(myBopt.fx_opt))
+print(opt_time_str)
 result_file.close()
 print("end")
 time.sleep(1000)
