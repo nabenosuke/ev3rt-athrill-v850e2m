@@ -438,6 +438,7 @@ void main_task(intptr_t unused)
                      integral = 0;
         static float midpoint = (white - black) / 2 + black;
         {
+            //反射光の強さ
             float error = midpoint - ev3_color_sensor_get_reflect(EV3_PORT_1);
 #ifdef LIGHT_BRIGHT
             integral = error + integral * 0.01;
